@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -112,6 +113,45 @@ func downloadCastFile(castUrl string, outputDir string) (string, string) {
 	return castFilePath, castFileName
 }
 
+func createSvgFile(castId string) (string, error) {
+	var err error
+
+	// Create temp dir
+	if cacheDirPath == "" {
+		panic("cacheDirPath doesn't exist!")
+	}
+
+	// Download cast file
+	castFilePath, castFileName := downloadCastFile(
+		"https://asciinema.org/a/"+castId,
+		cacheDirPath,
+	)
+
+	// Set svgFilePath
+	if _, err := os.Stat(cacheDirPath + "/svg-files"); os.IsNotExist(err) {
+		os.Mkdir(cacheDirPath+"svg-files", os.ModePerm)
+	}
+	svgFilePath := cacheDirPath + "/svg-files/" + castId + ".svg"
+
+	// Run command if svgFilePath don't exist
+	logsFilePath := ""
+	logContent := ""
+	if _, err := os.Stat(svgFilePath); os.IsNotExist(err) {
+		fmt.Printf("[%s] creating SVG img...\n", castId)
+		args := []string{
+			"--in=" + castFilePath,
+			"--out=" + svgFilePath,
+		}
+		logsFilePath = runCommand("/usr/local/bin/svg-term", args, castFileName)
+		logContent = string(getFileContent(logsFilePath))
+		fmt.Printf("[%s] created     : %s\n", castId, svgFilePath)
+	} else {
+		fmt.Printf("[%s] using cache : %s\n", castId, svgFilePath)
+	}
+
+	return logContent, err
+}
+
 func getFileContent(filePath string) []byte {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -170,6 +210,7 @@ func StartHTTPServer() {
 		),
 	)
 	r.PathPrefix("/convert-svg/{castId}").HandlerFunc(CreateSVG)
+	r.PathPrefix("/download/{castId}").HandlerFunc(DownloadSVG)
 
 	// HTTP server
 	fmt.Println("server started:")
@@ -188,37 +229,9 @@ func CreateSVG(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	castId := params["castId"]
 
-	// Create temp dir
-	if cacheDirPath == "" {
-		panic("cacheDirPath doesn't exist!")
-	}
-
-	// Download cast file
-	castFilePath, castFileName := downloadCastFile(
-		"https://asciinema.org/a/"+castId,
-		cacheDirPath,
-	)
-
-	// Set svgFilePath
-	if _, err := os.Stat(cacheDirPath + "/svg-files"); os.IsNotExist(err) {
-		os.Mkdir(cacheDirPath+"svg-files", os.ModePerm)
-	}
-	svgFilePath := cacheDirPath + "/svg-files/" + castId + ".svg"
-
-	// Run command if svgFilePath don't exist
-	logsFilePath := ""
-	logContent := ""
-	if _, err := os.Stat(svgFilePath); os.IsNotExist(err) {
-		fmt.Printf("[%s] creating SVG img...\n", castId)
-		args := []string{
-			"--in=" + castFilePath,
-			"--out=" + svgFilePath,
-		}
-		logsFilePath = runCommand("/usr/local/bin/svg-term", args, castFileName)
-		logContent = string(getFileContent(logsFilePath))
-		fmt.Printf("[%s] created     : %s\n", castId, svgFilePath)
-	} else {
-		fmt.Printf("[%s] using cache : %s\n", castId, svgFilePath)
+	logContent, err := createSvgFile(castId)
+	if err != nil {
+		panic(err)
 	}
 
 	// Return CSV or error msg
@@ -231,6 +244,30 @@ func CreateSVG(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(
 			w,
 			fmt.Sprintf("{\"svg_url\" = \"http://%s/svg/%s.svg\"}", r.Host, castId),
+		)
+	}
+}
+
+func DownloadSVG(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	castId := params["castId"]
+	castId = strings.ReplaceAll(castId, ".svg", "")
+	
+	logContent, err := createSvgFile(castId)
+	if err != nil {
+		panic(err)
+	}
+
+	// Return CSV or error msg
+	if len(logContent) != 0 {
+		fmt.Printf("[%s] ERROR...\n", castId)
+		fmt.Fprintf(w, "ERROR!<br>")
+		fmt.Fprintf(w, string(logContent))
+	} else {
+		http.Redirect(
+			w, r,
+			fmt.Sprintf("http://%s/svg/%s.svg", r.Host, castId),
+			301,
 		)
 	}
 
