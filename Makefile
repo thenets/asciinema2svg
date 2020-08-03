@@ -15,7 +15,6 @@ build-windows:
 	GOOS=windows \
 	go build -o ./dist/windows/svg-term-server.exe
 
-
 build-linux:
 	mkdir -p ./dist/linux/
 	GOARCH=amd64 \
