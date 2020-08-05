@@ -1,0 +1,41 @@
+{
+  "name": "docker-svg-term",
+  "version": "1.0.0",
+  "description": "An API for my Dev Tools Management",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev server/server.ts",
+    "start": "node dist/server.js",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thenets/devops-env.git"
+  },
+  "keywords": [
+    "tools"
+  ],
+  "author": "Ronaldo Moraes",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/thenets/devops-env/issues"
+  },
+  "homepage": "https://github.com/thenets/devops-env#readme",
+  "dependencies": {
+    "celebrate": "^12.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "knex": "^0.21.1",
+    "objection": "^2.2.1",
+    "svg-term": "^2.0.3"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.6",
+    "@types/express": "^4.17.6",
+    "@types/node": "^14.0.19",
+    "sqlite3": "^5.0.0",
+    "ts-node-dev": "^1.0.0-pre.44",
+    "typescript": "^3.9.3"
+  }
+}
